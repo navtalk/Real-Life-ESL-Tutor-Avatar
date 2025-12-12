@@ -24,17 +24,12 @@ function handleClick() {
     @click="handleClick"
     @keyup.enter="handleClick"
   >
-    <div class="avatar-image">
+    <figure class="avatar-image">
       <img :src="avatar.photo" :alt="avatar.name" loading="lazy" />
-    </div>
+    </figure>
     <div class="avatar-body">
-      <div class="avatar-headline">
-        <div>
-          <h3>{{ avatar.name }}</h3>
-          <p>{{ avatar.persona }}</p>
-        </div>
-        <span class="badge">AI Tutor</span>
-      </div>
+      <h3>{{ avatar.name }}</h3>
+      <p class="persona">{{ avatar.persona }}</p>
       <p class="avatar-description">{{ avatar.description }}</p>
       <ul class="chip-list">
         <li v-for="skill in avatar.expertise" :key="skill">{{ skill }}</li>
@@ -46,62 +41,53 @@ function handleClick() {
 <style scoped>
 .avatar-card {
   cursor: pointer;
-  border-radius: 32px;
+  border-radius: 38px;
   border: 2px solid transparent;
-  background: rgba(255, 255, 255, 0.95);
+  background: #fff;
   display: flex;
-  gap: 24px;
-  padding: 24px;
-  transition: border 0.2s ease;
+  flex-direction: column;
+  padding: 18px 18px 24px;
+  transition: border 0.2s ease, box-shadow 0.2s ease;
+  min-height: 360px;
+  max-width: 220px;
+  width: 100%;
+  align-items: center;
 }
 
+.avatar-card:hover,
 .avatar-card.selected {
-  border-color: #1d1e2c;
-  box-shadow: 0 18px 45px rgba(17, 20, 39, 0.15);
+  border-color: rgba(18, 19, 29, 0.18);
+  box-shadow: 0 28px 45px rgba(17, 20, 39, 0.18);
+}
+
+.avatar-image {
+  width: 180px;
+  border-radius: 28px;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  margin: 0 0 18px;
 }
 
 .avatar-image img {
-  width: clamp(120px, 12vw, 168px);
-  height: clamp(120px, 12vw, 168px);
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 28px;
-  box-shadow: inset 0 0 0 4px #fff;
+  display: block;
 }
 
-.avatar-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.avatar-headline {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: baseline;
-}
-
-.avatar-headline h3 {
+.avatar-body h3 {
   margin: 0;
   font-size: 1.3rem;
 }
 
-.avatar-headline p {
-  margin: 4px 0 0;
-  color: #4f5662;
-}
-
-.badge {
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  background: rgba(29, 30, 44, 0.08);
+.persona {
+  margin: 6px 0 8px;
+  color: #1d1e2c;
   font-weight: 600;
 }
 
 .avatar-description {
-  margin: 0;
+  margin: 0 0 16px;
   color: #4f5662;
 }
 
@@ -110,27 +96,21 @@ function handleClick() {
   list-style: none;
   padding: 0;
   margin: 0;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .chip-list li {
   border-radius: 999px;
-  padding: 8px 16px;
+  padding: 6px 14px;
   background: rgba(29, 30, 44, 0.08);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 640px) {
   .avatar-card {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .avatar-headline {
-    flex-direction: column;
-    align-items: flex-start;
+    min-height: auto;
   }
 }
 </style>

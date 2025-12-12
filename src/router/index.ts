@@ -21,6 +21,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/summary/:goalId/:avatarId',
+      name: 'summary',
+      component: () => import('../views/SummaryView.vue'),
+      props: true,
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/',
     },

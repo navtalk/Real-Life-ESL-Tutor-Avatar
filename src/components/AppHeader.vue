@@ -3,102 +3,100 @@ import { RouterLink } from 'vue-router'
 </script>
 
 <template>
-  <header class="app-header">
-    <RouterLink class="brand-link" to="/">
-      <img src="/navtalk-mark.svg" alt="NavTalk logo" />
-      <div class="brand-copy">
-        <span class="brand-name">NavTalk</span>
-        <span class="brand-tagline">Learning Studio</span>
-      </div>
+  <header class="corner-header">
+    <RouterLink class="corner-brand" to="/">
+      <img src="/icons/navtalk.png" alt="NavTalk logo" />
+      <span>NavTalk</span>
     </RouterLink>
 
-    <div class="header-actions">
-      <a class="ghost-button" href="https://navtalk.ai" target="_blank" rel="noreferrer">
-        Visit navtalk.ai
-      </a>
-      <a
-        class="ghost-button"
-        href="https://github.com/navtalk/Hotel-Front-Desk-Receptionist"
-        target="_blank"
-        rel="noreferrer"
-      >
-        Reference repo ->
-      </a>
-    </div>
+    <a
+      class="corner-github"
+      href="https://github.com/navtalk/Real-Life-ESL-Tutor-Avatar"
+      target="_blank"
+      rel="noreferrer"
+    >
+      GitHub
+      <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+        <path
+          d="M4 12 12 4m0 0H6m6 0v6"
+          stroke="white"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </a>
   </header>
 </template>
 
 <style scoped>
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 24px;
+.corner-header {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
 }
 
-.brand-link {
-  display: flex;
+.corner-brand,
+.corner-github {
+  pointer-events: auto;
+}
+
+.corner-brand {
+  position: fixed;
+  top: clamp(12px, 3vw, 32px);
+  left: clamp(12px, 3vw, 48px);
+  display: inline-flex;
   align-items: center;
+  gap: 12px;
   text-decoration: none;
-  gap: 14px;
-}
-
-.brand-link img {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  box-shadow: 0 10px 25px rgba(67, 56, 202, 0.35);
-}
-
-.brand-copy {
-  display: flex;
-  flex-direction: column;
-}
-
-.brand-name {
-  color: #1d1e2c;
   font-size: 1.2rem;
   font-weight: 700;
-}
-
-.brand-tagline {
-  color: #6b7280;
-  font-size: 0.95rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.ghost-button {
-  border-radius: 999px;
-  border: 1px solid rgba(29, 30, 44, 0.2);
-  background: rgba(255, 255, 255, 0.6);
-  padding: 10px 20px;
-  text-decoration: none;
   color: #1d1e2c;
-  font-weight: 600;
-  transition: border 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  padding: 10px 18px;
 }
 
-.ghost-button:hover {
-  border-color: rgba(29, 30, 44, 0.35);
-  box-shadow: 0 10px 30px rgba(17, 20, 39, 0.12);
+.corner-brand img {
+  width: 42px;
+  height: 42px;
+}
+
+.corner-github {
+  position: fixed;
+  top: clamp(12px, 3vw, 32px);
+  right: clamp(12px, 3vw, 48px);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  background: #12131d;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 14px 30px rgba(18, 19, 29, 0.25);
+}
+
+.corner-github:hover {
   transform: translateY(-2px);
+  box-shadow: 0 18px 38px rgba(18, 19, 29, 0.25);
 }
 
 @media (max-width: 640px) {
-  .app-header {
-    flex-direction: column;
-    gap: 16px;
+  .corner-brand,
+  .corner-github {
+    position: fixed;
+    top: 12px;
+    padding: 8px 16px;
   }
 
-  .header-actions {
-    width: 100%;
-    justify-content: center;
+  .corner-brand {
+    left: 12px;
+  }
+
+  .corner-github {
+    right: 12px;
   }
 }
 </style>
