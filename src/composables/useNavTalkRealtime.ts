@@ -76,6 +76,144 @@ function base64Encode(uint8Array: Uint8Array) {
   return btoa(binary)
 }
 
+let playbackContext: AudioContext | null = null
+let playbackSource: AudioBufferSourceNode | null = null
+const playbackQueue: ArrayBuffer[] = []
+let isPlaybackActive = false
+
+function base64ToArrayBuffer(base64: string) {
+  let binaryString = ''
+  const atobGlobal =
+    (typeof globalThis !== 'undefined' && (globalThis as unknown as { atob?: (value: string) => string }).atob) ||
+    (typeof window !== 'undefined' ? window.atob : undefined)
+  const bufferCtor = typeof globalThis !== 'undefined' ? (globalThis as any).Buffer : undefined
+  if (atobGlobal) {
+    binaryString = atobGlobal(base64)
+  } else if (bufferCtor) {
+    binaryString = bufferCtor.from(base64, 'base64').toString('binary')
+  } else {
+    throw new Error('No base64 decoder available')
+  }
+  const len = binaryString.length
+  const bytes = new Uint8Array(len)
+  for (let i = 0; i < len; i += 1) {
+    bytes[i] = binaryString.charCodeAt(i)
+  }
+  return bytes.buffer
+}
+
+function createWavFromPCM(pcmBuffer: ArrayBuffer, sampleRate = 24000) {
+  const wavBuffer = new ArrayBuffer(44 + pcmBuffer.byteLength)
+  const view = new DataView(wavBuffer)
+  let offset = 0
+
+  const writeString = (value: string) => {
+    for (let i = 0; i < value.length; i += 1) {
+      view.setUint8(offset + i, value.charCodeAt(i))
+    }
+    offset += value.length
+  }
+
+  writeString('RIFF')
+  view.setUint32(offset, 36 + pcmBuffer.byteLength, true)
+  offset += 4
+  writeString('WAVE')
+  writeString('fmt ')
+  view.setUint32(offset, 16, true)
+  offset += 4
+  view.setUint16(offset, 1, true)
+  offset += 2
+  view.setUint16(offset, 1, true)
+  offset += 2
+  view.setUint32(offset, sampleRate, true)
+  offset += 4
+  view.setUint32(offset, sampleRate * 2, true)
+  offset += 4
+  view.setUint16(offset, 2, true)
+  offset += 2
+  view.setUint16(offset, 16, true)
+  offset += 2
+  writeString('data')
+  view.setUint32(offset, pcmBuffer.byteLength, true)
+  offset += 4
+
+  new Uint8Array(wavBuffer, 44).set(new Uint8Array(pcmBuffer))
+  return wavBuffer
+}
+
+function ensurePlaybackContext() {
+  if (typeof window === 'undefined') return null
+  const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+  if (!AudioCtx) return null
+  if (!playbackContext) {
+    playbackContext = new AudioCtx()
+  } else if (playbackContext.state === 'suspended') {
+    playbackContext.resume().catch(() => null)
+  }
+  return playbackContext
+}
+
+function stopPlayback() {
+  if (playbackSource) {
+    try {
+      playbackSource.stop()
+      playbackSource.disconnect()
+    } catch {
+      /* ignore */
+    }
+    playbackSource = null
+  }
+  playbackQueue.length = 0
+  isPlaybackActive = false
+  if (playbackContext) {
+    playbackContext.close().catch(() => null)
+    playbackContext = null
+  }
+}
+
+function playQueuedAudio() {
+  if (isPlaybackActive || !playbackQueue.length) return
+  const ctx = ensurePlaybackContext()
+  if (!ctx) return
+  const wavBuffer = playbackQueue.shift()
+  if (!wavBuffer) return
+  isPlaybackActive = true
+  ctx
+    .decodeAudioData(wavBuffer.slice(0))
+    .then((audioBuffer) => {
+      if (!ctx) return
+      playbackSource = ctx.createBufferSource()
+      playbackSource.buffer = audioBuffer
+      playbackSource.connect(ctx.destination)
+      playbackSource.onended = () => {
+        playbackSource = null
+        isPlaybackActive = false
+        playQueuedAudio()
+      }
+      playbackSource.start(0)
+    })
+    .catch((err) => {
+      console.error('Failed to decode NavTalk audio chunk', err)
+      isPlaybackActive = false
+      playQueuedAudio()
+    })
+}
+
+function enqueueAudioChunk(base64: string) {
+  const pcmBuffer = base64ToArrayBuffer(base64)
+  const wavBuffer = createWavFromPCM(pcmBuffer)
+  playbackQueue.push(wavBuffer)
+  playQueuedAudio()
+}
+
+function resumePlaybackContext() {
+  if (!playbackContext) {
+    ensurePlaybackContext()
+  } else if (playbackContext.state === 'suspended') {
+    playbackContext.resume().catch(() => null)
+  }
+}
+
 export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   const config = reactive<NavTalkConfig>({
     license: import.meta.env.VITE_NAVTALK_LICENSE ?? '',
@@ -107,6 +245,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   let audioContext: AudioContext | null = null
   let audioProcessor: ScriptProcessorNode | null = null
   let audioStream: MediaStream | null = null
+let isPlaybackActive = false
   let proxySessionId: string | null = null
   let targetSessionId: string | null = null
   let hasHydratedIceServers = false
@@ -438,6 +577,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
 
   function teardown(nextStatus: SessionStatus, reason?: string) {
     stopRecording()
+    stopPlayback()
     if (realtimeSocket) {
       realtimeSocket.onclose = null
       realtimeSocket.onerror = null
@@ -548,6 +688,11 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
               break
             case 'response.audio_transcript.done':
               finalizeAssistantResponse(data.response_id)
+              break
+            case 'response.audio.delta':
+              if (typeof data.delta === 'string') {
+                enqueueAudioChunk(data.delta)
+              }
               break
             case 'response.completed':
               assistantThinking.value = false
@@ -758,5 +903,6 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     sendTextMessage,
     clearHistory,
     setPrompt,
+    resumePlaybackAudio: resumePlaybackContext,
   }
 }

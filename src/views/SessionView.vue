@@ -181,6 +181,7 @@ const {
   toggleSession,
   disconnect,
   clearHistory,
+  resumePlaybackAudio,
 } = navtalk
 
 const goal = computed(() => findGoal(props.goalId))
@@ -234,6 +235,7 @@ function handleToggleCall() {
     return
   }
 
+  resumePlaybackAudio()
   toggleSession()
   const video = videoRef.value
   if (video) {
