@@ -6,33 +6,35 @@ export interface LearningGoal {
   accent: string
 }
 
+import { assetUrl } from '../utils/assetUrl'
+
 export const learningGoals: LearningGoal[] = [
   {
     id: 'zero-beginner',
     title: 'Zero-Beginner',
     description: '',
-    icon: '/icons/star.png',
+    icon: assetUrl('icons/star.png'),
     accent: '#FBCB56',
   },
   {
     id: 'daily-conversation',
     title: 'Daily Conversation',
     description: '',
-    icon: '/icons/sms.png',
+    icon: assetUrl('icons/sms.png'),
     accent: '#9C8BFF',
   },
   {
     id: 'exam-prep',
     title: 'Language Exam Prep',
     description: '',
-    icon: '/icons/book.png',
+    icon: assetUrl('icons/book.png'),
     accent: '#6FC3FF',
   },
   {
     id: 'business-communication',
     title: 'Business Communication',
     description: '',
-    icon: '/icons/briefcase.png',
+    icon: assetUrl('icons/briefcase.png'),
     accent: '#66CA9F',
   },
 ]

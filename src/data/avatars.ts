@@ -1,3 +1,5 @@
+import { assetUrl } from '../utils/assetUrl'
+
 export interface TutorAvatar {
   id: string
   name: string
@@ -14,7 +16,7 @@ export const tutorAvatars: TutorAvatar[] = [
     persona: '',
     description: 'Keeps sessions calm and clear, great for foundational learners.',
     expertise: [],
-    photo: '/images/Lily.png',
+    photo: assetUrl('images/Lily.png'),
   },
   {
     id: 'owen',
@@ -22,7 +24,7 @@ export const tutorAvatars: TutorAvatar[] = [
     persona: '',
     description: 'Natural small talk and story-driven guidance for smooth chats.',
     expertise: [],
-    photo: '/images/Owen.png',
+    photo: assetUrl('images/Owen.png'),
   },
   {
     id: 'nicole',
@@ -30,7 +32,7 @@ export const tutorAvatars: TutorAvatar[] = [
     persona: '',
     description: 'Precise grammar corrections and exam-oriented drills.',
     expertise: [],
-    photo: '/images/Nicole.png',
+    photo: assetUrl('images/Nicole.png'),
   },
   {
     id: 'ben',
@@ -38,7 +40,7 @@ export const tutorAvatars: TutorAvatar[] = [
     persona: '',
     description: 'Helps you lead meetings with confidence and clarity.',
     expertise: [],
-    photo: '/images/Ben.png',
+    photo: assetUrl('images/Ben.png'),
   },
 ]
 

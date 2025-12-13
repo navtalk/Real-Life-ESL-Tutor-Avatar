@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import { assetUrl } from '../utils/assetUrl'
+
+const brandLogo = assetUrl('icons/navtalk.png')
 </script>
 
 <template>
   <header class="corner-header">
     <RouterLink class="corner-brand" to="/">
-      <img src="/icons/navtalk.png" alt="NavTalk logo" />
+      <img :src="brandLogo" alt="NavTalk logo" />
       <span>NavTalk</span>
     </RouterLink>
 
