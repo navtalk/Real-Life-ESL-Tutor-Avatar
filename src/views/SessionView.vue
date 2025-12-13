@@ -184,6 +184,8 @@ const {
   resumePlaybackAudio,
 } = navtalk
 
+const chatVisible = ref(false)
+
 const goal = computed(() => findGoal(props.goalId))
 const avatar = computed(() => findAvatar(props.avatarId))
 
@@ -232,11 +234,13 @@ function handleToggleCall() {
       })
     }
     disconnect()
+    chatVisible.value = false
     return
   }
 
   resumePlaybackAudio()
   toggleSession()
+  chatVisible.value = true
   const video = videoRef.value
   if (video) {
     video.muted = false
@@ -250,7 +254,7 @@ function handleToggleCall() {
 
 <template>
   <section v-if="goal && avatar" class="session-screen">
-    <div class="stage-row">
+    <div class="stage-stack">
       <div class="video-column">
         <div class="video-stage">
           <div class="video-frame">
@@ -327,22 +331,24 @@ function handleToggleCall() {
         <p v-if="errorMessage" class="error-banner">{{ errorMessage }}</p>
       </div>
 
-      <aside class="chat-panel">
-        <header>
-          <h3>Chat Log</h3>
-        </header>
-        <div class="chat-stream">
-          <p v-if="!chatMessages.length" class="empty-state">No messages yet.</p>
-          <article
-            v-for="message in chatMessages"
-            :key="message.id"
-            :class="['chat-entry', message.role]"
-          >
-            <span class="role">{{ message.role === 'assistant' ? avatar.name : 'You' }}</span>
-            <p>{{ message.text }}</p>
-          </article>
-        </div>
-      </aside>
+      <Transition name="chat-fly">
+        <aside v-if="chatVisible" class="chat-panel">
+          <header>
+            <h3>Chat Log</h3>
+          </header>
+          <div class="chat-stream">
+            <p v-if="!chatMessages.length" class="empty-state">No messages yet.</p>
+            <article
+              v-for="message in chatMessages"
+              :key="message.id"
+              :class="['chat-entry', message.role]"
+            >
+              <span class="role">{{ message.role === 'assistant' ? avatar.name : 'You' }}</span>
+              <p>{{ message.text }}</p>
+            </article>
+          </div>
+        </aside>
+      </Transition>
     </div>
   </section>
 </template>
@@ -355,15 +361,16 @@ function handleToggleCall() {
   flex-direction: column;
   justify-content: center;
   gap: clamp(20px, 3vw, 32px);
-  --stage-height: clamp(320px, 58vh, 540px);
+  --stage-size: clamp(320px, 58vh, 540px);
 }
 
-.stage-row {
-  display: grid;
-  grid-template-columns: minmax(420px, 1.35fr) minmax(300px, 0.65fr);
-  gap: clamp(16px, 3vw, 32px);
-  align-items: stretch;
+.stage-stack {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(20px, 4vw, 48px);
   width: 100%;
+  position: relative;
 }
 
 .video-column {
@@ -372,6 +379,7 @@ function handleToggleCall() {
   align-items: center;
   gap: clamp(16px, 2vw, 28px);
   width: 100%;
+  max-width: var(--stage-size);
 }
 
 .video-stage {
@@ -382,11 +390,12 @@ function handleToggleCall() {
 
 .video-frame {
   position: relative;
-  width: 100%;
+  width: min(100%, var(--stage-size));
+  max-width: var(--stage-size);
+  aspect-ratio: 1 / 1;
   border-radius: 44px;
   overflow: hidden;
-  background: #0b0d18;
-  height: var(--stage-height);
+  background-color: #fff;
 }
 
 .video-frame video {
@@ -462,8 +471,10 @@ function handleToggleCall() {
   padding: 24px;
   display: flex;
   flex-direction: column;
-  height: var(--stage-height);
-  min-height: var(--stage-height);
+  height: var(--stage-size);
+  min-height: var(--stage-size);
+  width: clamp(300px, 34vw, 460px);
+  margin-top: 0;
 }
 
 .chat-panel header h3 {
@@ -569,17 +580,12 @@ function handleToggleCall() {
 }
 
 @media (max-width: 1024px) {
-  .stage-row {
-    grid-template-columns: 1fr;
+  .stage-stack {
+    flex-direction: column;
   }
 
   .session-screen {
     min-height: auto;
-  }
-
-  .chat-panel {
-    width: min(520px, 100%);
-    justify-self: center;
   }
 
   .video-frame {
@@ -590,7 +596,7 @@ function handleToggleCall() {
 @media (max-width: 640px) {
   .session-screen {
     padding-bottom: 24px;
-    --stage-height: clamp(260px, 65vw, 360px);
+    --stage-size: clamp(260px, 65vw, 360px);
   }
 
   .video-frame {
@@ -602,10 +608,24 @@ function handleToggleCall() {
     align-items: center;
   }
 
+  .chat-panel {
+    width: min(360px, 100%);
+  }
+
   .icon-button .icon-circle {
     width: 60px;
     height: 60px;
   }
 }
-</style>
 
+.chat-fly-enter-from,
+.chat-fly-leave-to {
+  opacity: 0;
+  transform: translateX(40px) scale(0.98);
+}
+
+.chat-fly-enter-active,
+.chat-fly-leave-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+</style>
