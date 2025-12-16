@@ -244,8 +244,11 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   let peerConnection: RTCPeerConnection | null = null
   let audioContext: AudioContext | null = null
   let audioProcessor: ScriptProcessorNode | null = null
+  let audioSourceNode: MediaStreamAudioSourceNode | null = null
   let audioStream: MediaStream | null = null
-let isPlaybackActive = false
+  let recordingToken = 0
+  const activeMicTracks = new Set<MediaStreamTrack>()
+  const isMicMuted = ref(false)
   let proxySessionId: string | null = null
   let targetSessionId: string | null = null
   let hasHydratedIceServers = false
@@ -516,16 +519,76 @@ let isPlaybackActive = false
     })
   }
 
+  function setMicEnabled(enabled: boolean) {
+    const next = !!enabled
+    activeMicTracks.forEach((track) => {
+      try {
+        track.enabled = next
+      } catch {
+        /* noop */
+      }
+    })
+    if (audioStream) {
+      audioStream.getTracks().forEach((track) => {
+        try {
+          track.enabled = next
+        } catch {
+          /* noop */
+        }
+      })
+    }
+  }
+
+  function muteMicrophone() {
+    if (!audioStream) return
+    isMicMuted.value = true
+    setMicEnabled(false)
+  }
+
+  function unmuteMicrophone() {
+    if (!audioStream) return
+    isMicMuted.value = false
+    setMicEnabled(true)
+  }
+
+  function toggleMicrophone() {
+    if (!audioStream) return
+    if (isMicMuted.value) {
+      unmuteMicrophone()
+    } else {
+      muteMicrophone()
+    }
+  }
+
   async function startRecording() {
     if (audioStream || typeof navigator === 'undefined') {
       return
     }
 
+    const attemptToken = ++recordingToken
+
     try {
-      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const pendingStream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      if (attemptToken !== recordingToken) {
+        pendingStream.getTracks().forEach((track) => {
+          try {
+            track.stop()
+          } catch {
+            /* noop */
+          }
+        })
+        return
+      }
+
+      audioStream = pendingStream
+      activeMicTracks.clear()
+      audioStream.getTracks().forEach((track) => activeMicTracks.add(track))
+      isMicMuted.value = false
+      setMicEnabled(true)
+
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
       audioContext = new AudioCtx({ sampleRate: 24000 })
-      const source = audioContext.createMediaStreamSource(audioStream)
+      audioSourceNode = audioContext.createMediaStreamSource(audioStream)
       audioProcessor = audioContext.createScriptProcessor(4096, 1, 1)
       audioProcessor.onaudioprocess = (event) => {
         if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
@@ -540,7 +603,7 @@ let isPlaybackActive = false
           realtimeSocket.send(JSON.stringify({ type: 'input_audio_buffer.append', audio: chunk }))
         }
       }
-      source.connect(audioProcessor)
+      audioSourceNode.connect(audioProcessor)
       audioProcessor.connect(audioContext.destination)
     } catch (error) {
       console.error('Microphone permission denied', error)
@@ -549,17 +612,43 @@ let isPlaybackActive = false
   }
 
   function stopRecording() {
+    recordingToken += 1
+    isMicMuted.value = false
     if (audioProcessor) {
       audioProcessor.disconnect()
       audioProcessor.onaudioprocess = null
       audioProcessor = null
     }
+    if (audioSourceNode) {
+      try {
+        audioSourceNode.disconnect()
+      } catch {
+        /* noop */
+      }
+      audioSourceNode = null
+    }
     if (audioContext) {
       audioContext.close().catch(() => null)
       audioContext = null
     }
+    activeMicTracks.forEach((track) => {
+      try {
+        track.enabled = false
+        track.stop()
+      } catch {
+        /* noop */
+      }
+    })
+    activeMicTracks.clear()
     if (audioStream) {
-      audioStream.getTracks().forEach((track) => track.stop())
+      audioStream.getTracks().forEach((track) => {
+        try {
+          track.enabled = false
+          track.stop()
+        } catch {
+          /* noop */
+        }
+      })
       audioStream = null
     }
   }
@@ -897,9 +986,13 @@ let isPlaybackActive = false
     isCallActive,
     isConnecting,
     isConfigured,
+    isMicMuted,
     connect,
     disconnect,
     toggleSession,
+    toggleMicrophone,
+    muteMicrophone,
+    unmuteMicrophone,
     sendTextMessage,
     clearHistory,
     setPrompt,

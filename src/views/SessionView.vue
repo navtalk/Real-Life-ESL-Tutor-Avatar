@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { findGoal } from '../data/goals'
 import { findAvatar } from '../data/avatars'
 import { useNavTalkRealtime, type ChatMessage } from '../composables/useNavTalkRealtime'
+import MovableCamera from '../components/MovableCamera.vue'
 import type { SessionFeedback, CorrectionItem } from '../types/sessionFeedback'
 
 const DEFAULT_FEEDBACK: SessionFeedback = {
@@ -182,6 +183,8 @@ const {
   disconnect,
   clearHistory,
   resumePlaybackAudio,
+  toggleMicrophone,
+  isMicMuted,
 } = navtalk
 
 const chatVisible = ref(false)
@@ -250,6 +253,11 @@ function handleToggleCall() {
   }
 }
 
+function handleMicToggle() {
+  if (!isCallActive.value) return
+  toggleMicrophone()
+}
+
 </script>
 
 <template>
@@ -311,20 +319,26 @@ function handleToggleCall() {
             <span>{{ isCallActive || isConnecting ? 'Hang up' : 'Start call' }}</span>
           </button>
 
-          <button type="button" class="icon-button ghosted" disabled>
+          <button
+            type="button"
+            class="icon-button mic"
+            :class="{ muted: isMicMuted }"
+            :disabled="!isCallActive"
+            @click="handleMicToggle"
+          >
             <span class="icon-circle">
               <svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true">
                 <path
                   d="M8 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Zm6 9c0 3.9-3.1 7-7 7s-7-3.1-7-7m7 7v4"
                   fill="none"
-                  stroke="#111"
+                  stroke="currentColor"
                   stroke-width="1.6"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
               </svg>
             </span>
-            <span>Microphone</span>
+            <span>{{ isMicMuted ? 'Unmute mic' : 'Mute mic' }}</span>
           </button>
         </div>
 
@@ -351,6 +365,7 @@ function handleToggleCall() {
       </Transition>
     </div>
   </section>
+  <MovableCamera :active="isCallActive" />
 </template>
 
 <style scoped>
@@ -533,11 +548,16 @@ function handleToggleCall() {
   cursor: pointer;
   font-weight: 600;
   color: #111327;
+  transition: color 0.2s ease;
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .icon-button.ghosted {
   opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .icon-button .icon-circle {
@@ -548,6 +568,8 @@ function handleToggleCall() {
   display: grid;
   place-items: center;
   box-shadow: 0 12px 30px rgba(15, 18, 34, 0.15);
+  color: inherit;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .icon-button.hangup .icon-circle {
@@ -566,6 +588,19 @@ function handleToggleCall() {
 
 .icon-button.hangup.active span {
   color: #f25050;
+}
+
+.icon-button.mic {
+  pointer-events: auto;
+}
+
+.icon-button.mic.muted {
+  color: #b91c1c;
+}
+
+.icon-button.mic.muted .icon-circle {
+  background: #fee2e2;
+  box-shadow: 0 12px 24px rgba(185, 28, 28, 0.2);
 }
 
 .error-banner {
