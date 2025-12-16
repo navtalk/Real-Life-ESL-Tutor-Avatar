@@ -183,6 +183,8 @@ const {
   disconnect,
   clearHistory,
   resumePlaybackAudio,
+  setCharacter,
+  setVoice,
   toggleMicrophone,
   isMicMuted,
 } = navtalk
@@ -209,6 +211,18 @@ Always end each turn with a suggestion for the learner to speak next.`
 watchEffect(() => {
   if (sessionPrompt.value) {
     navtalk.setPrompt(sessionPrompt.value)
+  }
+})
+
+watchEffect(() => {
+  if (avatar.value?.characterName) {
+    setCharacter(avatar.value.characterName)
+  }
+})
+
+watchEffect(() => {
+  if (avatar.value?.voice) {
+    setVoice(avatar.value.voice)
   }
 })
 

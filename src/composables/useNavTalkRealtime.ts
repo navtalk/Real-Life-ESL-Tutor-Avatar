@@ -970,6 +970,19 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     }
   }
 
+  function setCharacter(characterName: string) {
+    if (!characterName) return
+    config.characterName = characterName
+  }
+
+  function setVoice(voice: string) {
+    if (!voice) return
+    config.voice = voice
+    if (sessionStatus.value === 'connected') {
+      sendSessionUpdate()
+    }
+  }
+
   onBeforeUnmount(() => {
     disconnect()
   })
@@ -996,6 +1009,8 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     sendTextMessage,
     clearHistory,
     setPrompt,
+    setCharacter,
+    setVoice,
     resumePlaybackAudio: resumePlaybackContext,
   }
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, ref, watch, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import { findGoal } from '../data/goals'
 import { tutorAvatars, type TutorAvatar } from '../data/avatars'
@@ -11,6 +11,20 @@ const props = defineProps<{
 
 const router = useRouter()
 const selectedId = ref<string | null>(null)
+
+const GROUP_BY_GOAL: Record<string, TutorAvatar['category']> = {
+  'zero-beginner': 'beginner',
+  'daily-conversation': 'daily',
+  'exam-prep': 'exam',
+  'business-communication': 'business',
+}
+
+const selectedGroup = computed<TutorAvatar['category']>(() => {
+  const goalId = goal.value?.id ?? ''
+  return GROUP_BY_GOAL[goalId] ?? 'beginner'
+})
+
+const visibleAvatars = computed(() => tutorAvatars.filter((avatar) => avatar.category === selectedGroup.value))
 
 const goal = computed(() => findGoal(props.goalId))
 
@@ -32,6 +46,17 @@ function continueToSession() {
   if (!selectedId.value) return
   router.push({ name: 'session', params: { goalId: props.goalId, avatarId: selectedId.value } })
 }
+
+watch(
+  () => selectedGroup.value,
+  () => {
+    if (!selectedId.value) return
+    const stillVisible = visibleAvatars.value.some((avatar) => avatar.id === selectedId.value)
+    if (!stillVisible) {
+      selectedId.value = null
+    }
+  }
+)
 </script>
 
 <template>
@@ -46,7 +71,7 @@ function continueToSession() {
 
     <div class="avatar-grid">
       <AvatarCard
-        v-for="avatar in tutorAvatars"
+        v-for="avatar in visibleAvatars"
         :key="avatar.id"
         :avatar="avatar"
         :selected="selectedId === avatar.id"
