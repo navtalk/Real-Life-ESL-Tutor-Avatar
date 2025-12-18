@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watchEffect } from 'vue'
+import { computed, nextTick, ref, watch, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import { findGoal } from '../data/goals'
 import { findAvatar } from '../data/avatars'
@@ -190,6 +190,11 @@ const {
 } = navtalk
 
 const chatVisible = ref(false)
+const captionsEnabled = ref(true)
+const chatStreamRef = ref<HTMLDivElement | null>(null)
+const chatScrollSignature = computed(() =>
+  chatMessages.value.map((msg) => `${msg.id}:${msg.text.length}`).join('|')
+)
 
 const goal = computed(() => findGoal(props.goalId))
 const avatar = computed(() => findAvatar(props.avatarId))
@@ -226,6 +231,13 @@ watchEffect(() => {
   }
 })
 
+watch(
+  () => isCallActive.value,
+  (active) => {
+    chatVisible.value = active && captionsEnabled.value
+  }
+)
+
 const sessionLabel = computed(() => {
   switch (sessionStatus.value) {
     case 'connected':
@@ -257,7 +269,7 @@ function handleToggleCall() {
 
   resumePlaybackAudio()
   toggleSession()
-  chatVisible.value = true
+  chatVisible.value = captionsEnabled.value
   const video = videoRef.value
   if (video) {
     video.muted = false
@@ -271,6 +283,41 @@ function handleMicToggle() {
   if (!isCallActive.value) return
   toggleMicrophone()
 }
+
+function handleCaptionsToggle() {
+  if (!isCallActive.value) return
+  captionsEnabled.value = !captionsEnabled.value
+  chatVisible.value = captionsEnabled.value
+}
+
+async function scrollChatToBottom() {
+  if (!captionsEnabled.value || !chatVisible.value) return
+  await nextTick()
+  const container = chatStreamRef.value
+  if (container) {
+    container.scrollTop = container.scrollHeight
+  }
+}
+
+watch(
+  () => chatMessages.value.length,
+  () => {
+    scrollChatToBottom()
+  }
+)
+
+watch(chatScrollSignature, () => {
+  scrollChatToBottom()
+})
+
+watch(
+  () => [captionsEnabled.value, chatVisible.value],
+  ([captionsOn, visible]) => {
+    if (captionsOn && visible) {
+      scrollChatToBottom()
+    }
+  }
+)
 
 </script>
 
@@ -296,20 +343,26 @@ function handleMicToggle() {
         </div>
 
         <div class="control-deck">
-          <button type="button" class="icon-button ghosted" disabled>
+          <button
+            type="button"
+            class="icon-button captions"
+            :class="{ active: captionsEnabled }"
+            :disabled="!isCallActive"
+            @click="handleCaptionsToggle"
+          >
             <span class="icon-circle">
               <svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true">
                 <path
                   d="M1 11.5h20M3 2.5h16c1.1 0 2 .9 2 2v5c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2v-5c0-1.1.9-2 2-2Zm4 3h4m2 0h4"
                   fill="none"
-                  stroke="#111"
+                  stroke="currentColor"
                   stroke-width="1.6"
                   stroke-linecap="round"
                   stroke-linejoin="round"
                 />
               </svg>
             </span>
-            <span>Captions</span>
+            <span class="icon-label">{{ captionsEnabled ? 'Hide captions' : 'Show captions' }}</span>
           </button>
 
           <button
@@ -330,7 +383,7 @@ function handleMicToggle() {
                 />
               </svg>
             </span>
-            <span>{{ isCallActive || isConnecting ? 'Hang up' : 'Start call' }}</span>
+            <span class="icon-label">{{ isCallActive || isConnecting ? 'Hang up' : 'Start call' }}</span>
           </button>
 
           <button
@@ -341,7 +394,7 @@ function handleMicToggle() {
             @click="handleMicToggle"
           >
             <span class="icon-circle">
-              <svg width="16" height="22" viewBox="0 0 16 22" aria-hidden="true">
+              <svg v-if="!isMicMuted" width="16" height="22" viewBox="0 0 16 22" aria-hidden="true">
                 <path
                   d="M8 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Zm6 9c0 3.9-3.1 7-7 7s-7-3.1-7-7m7 7v4"
                   fill="none"
@@ -351,8 +404,18 @@ function handleMicToggle() {
                   stroke-linejoin="round"
                 />
               </svg>
+              <svg v-else width="20" height="22" viewBox="0 0 20 22" aria-hidden="true">
+                <path
+                  d="M12 2.5v7.5c0 1.7-1.3 3-3 3-.8 0-1.6-.3-2.1-.9m-2.4-2.9V5c0-1.7 1.3-3 3-3 1.1 0 2 .6 2.5 1.4M18 10c0 3.9-3.1 7-7 7-2 0-3.8-.8-5-2.2M11 17.5V21m-4-3.5V21M2 2l16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
             </span>
-            <span>{{ isMicMuted ? 'Unmute mic' : 'Mute mic' }}</span>
+            <span class="icon-label">{{ isMicMuted ? 'Unmute mic' : 'Mute mic' }}</span>
           </button>
         </div>
 
@@ -364,7 +427,7 @@ function handleMicToggle() {
           <header>
             <h3>Chat Log</h3>
           </header>
-          <div class="chat-stream">
+          <div ref="chatStreamRef" class="chat-stream">
             <p v-if="!chatMessages.length" class="empty-state">No messages yet.</p>
             <article
               v-for="message in chatMessages"
@@ -584,6 +647,20 @@ function handleMicToggle() {
   box-shadow: 0 12px 30px rgba(15, 18, 34, 0.15);
   color: inherit;
   transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.icon-button.captions .icon-circle {
+  border: 1px solid rgba(17, 19, 39, 0.1);
+}
+
+.icon-button.captions.active .icon-circle {
+  background: #111327;
+  color: #fff;
+  border-color: #111327;
+}
+
+.icon-button.captions.active .icon-label {
+  color: #111327;
 }
 
 .icon-button.hangup .icon-circle {

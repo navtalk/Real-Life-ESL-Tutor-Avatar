@@ -12,12 +12,14 @@ const cameraStream = ref<MediaStream | null>(null)
 const cameraReady = ref(false)
 const cameraError = ref('')
 const isDragging = ref(false)
+const isResizing = ref(false)
 
 const {
   isRecognitionActive,
   recognitionLabels,
   recognitionStatus,
   recognitionError,
+  recognitionLastUpdated,
   toggleRecognition: toggleCameraRecognition,
   stopRecognition,
 } = useCameraRecognition(videoRef, { intervalMs: 4500 })
@@ -38,18 +40,36 @@ const recognitionPlaceholder = computed(() => {
   }
 })
 
+const lastUpdatedText = computed(() => {
+  if (!recognitionLastUpdated.value) return ''
+  const delta = Date.now() - recognitionLastUpdated.value
+  if (delta < 1500) return 'Updated just now'
+  if (delta < 60000) return `Updated ${Math.round(delta / 1000)}s ago`
+  return `Updated ${Math.round(delta / 60000)}m ago`
+})
+
 const position = ref({
   x: 24,
   y: 24,
 })
+
+const panelWidth = ref(280)
+const MIN_PANEL_WIDTH = 220
+const MAX_PANEL_WIDTH = 540
 
 const dragOffset = {
   x: 0,
   y: 0,
 }
 
+const resizeState = {
+  startX: 0,
+  startWidth: 0,
+}
+
 const panelStyle = computed(() => ({
   transform: `translate(${position.value.x}px, ${position.value.y}px)`,
+  width: `${panelWidth.value}px`,
 }))
 
 function clampPosition(nextX: number, nextY: number) {
@@ -143,7 +163,40 @@ function stopCamera() {
 }
 
 function handleResize() {
+  panelWidth.value = clampWidth(panelWidth.value)
   clampPosition(position.value.x, position.value.y)
+}
+
+function clampWidth(nextWidth: number) {
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : MAX_PANEL_WIDTH
+  const limit = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, nextWidth))
+  const maxAllowed = Math.max(MIN_PANEL_WIDTH, viewportWidth - 48)
+  return Math.min(limit, maxAllowed)
+}
+
+function handleResizePointerMove(event: PointerEvent) {
+  if (!isResizing.value) return
+  const proposedWidth = resizeState.startWidth + (event.clientX - resizeState.startX)
+  panelWidth.value = clampWidth(proposedWidth)
+  clampPosition(position.value.x, position.value.y)
+}
+
+function stopResizing() {
+  if (!isResizing.value) return
+  isResizing.value = false
+  window.removeEventListener('pointermove', handleResizePointerMove)
+  window.removeEventListener('pointerup', stopResizing)
+}
+
+function handleResizePointerDown(event: PointerEvent) {
+  if (event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+  isResizing.value = true
+  resizeState.startX = event.clientX
+  resizeState.startWidth = panelWidth.value
+  window.addEventListener('pointermove', handleResizePointerMove)
+  window.addEventListener('pointerup', stopResizing)
 }
 
 function handleRecognitionToggle() {
@@ -168,6 +221,7 @@ watch(
 
 onMounted(() => {
   if (typeof window !== 'undefined') {
+    panelWidth.value = clampWidth(panelWidth.value)
     window.addEventListener('resize', handleResize)
     clampPosition(position.value.x, position.value.y)
   }
@@ -176,6 +230,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   stopCamera()
   stopDragging()
+  stopResizing()
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', handleResize)
   }
@@ -193,12 +248,27 @@ onBeforeUnmount(() => {
   >
     <header class="camera-bar" @pointerdown="handlePointerDown">
       <span>My Camera</span>
-      <span class="drag-hint">Drag anywhere</span>
+      <span class="drag-hint">Drag to move | Corner to resize</span>
     </header>
     <div class="camera-stage">
       <video v-show="cameraReady" ref="videoRef" autoplay playsinline muted></video>
-      <p v-if="!cameraReady && !cameraError" class="camera-tip">Awaiting camera permission…</p>
+      <p v-if="!cameraReady && !cameraError" class="camera-tip">Awaiting camera permission...</p>
       <p v-if="cameraError" class="camera-error">{{ cameraError }}</p>
+      <button
+        class="resize-handle"
+        type="button"
+        aria-label="Resize camera panel"
+        @pointerdown="handleResizePointerDown"
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path
+            d="M4 14h8M6 10h6M8 6h4"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
     </div>
     <div class="camera-intel">
       <div class="intel-header">
@@ -224,6 +294,7 @@ onBeforeUnmount(() => {
       <p v-else class="intel-placeholder">
         {{ recognitionPlaceholder }}
       </p>
+      <p v-if="lastUpdatedText" class="intel-updated">{{ lastUpdatedText }}</p>
       <p v-if="recognitionError" class="intel-error">{{ recognitionError }}</p>
     </div>
   </div>
@@ -235,9 +306,9 @@ onBeforeUnmount(() => {
   top: 0;
   left: 0;
   z-index: 60;
-  width: min(320px, 26vw);
-  max-width: 360px;
+  width: auto;
   min-width: 220px;
+  max-width: 540px;
   background: rgba(17, 19, 39, 0.8);
   border-radius: 20px;
   box-shadow: 0 18px 35px rgba(0, 0, 0, 0.35);
@@ -274,6 +345,7 @@ onBeforeUnmount(() => {
   padding: 8px;
   border-radius: 0 0 20px 20px;
   overflow: hidden;
+  position: relative;
 }
 
 .camera-stage video {
@@ -370,6 +442,37 @@ onBeforeUnmount(() => {
   color: #fecaca;
 }
 
+.intel-updated {
+  margin: 0;
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(17, 19, 39, 0.65);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: nwse-resize;
+  backdrop-filter: blur(6px);
+}
+
+.resize-handle:hover {
+  border-color: rgba(255, 255, 255, 0.65);
+  background: rgba(96, 165, 250, 0.25);
+}
+
+.resize-handle svg {
+  pointer-events: none;
+}
+
 .camera-tip,
 .camera-error {
   margin: 16px;
@@ -383,7 +486,8 @@ onBeforeUnmount(() => {
 
 @media (max-width: 768px) {
   .movable-camera {
-    width: min(240px, 45vw);
+    max-width: 90vw;
+    min-width: 200px;
   }
 }
 </style>
