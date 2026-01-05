@@ -78,8 +78,8 @@ watchEffect(() => {
   <section class="summary-screen" v-if="goal && avatar">
     <div class="summary-headline">
       <div>
-        <p class="eyebrow">Great job! 🎉</p>
-        <h1>Here’s your speaking overview with {{ avatar.name }}.</h1>
+        <h1>Great job! 🎉</h1>
+        <h3>Here’s your speaking overview with {{ avatar.name }}.</h3>
       </div>
       <button class="ghost-btn" @click="goHome">Go back home →</button>
     </div>
@@ -163,7 +163,8 @@ watchEffect(() => {
   border-radius: 999px;
   border: 1px solid rgba(17, 19, 39, 0.15);
   padding: 12px 28px;
-  background: rgba(255, 255, 255, 0.8);
+  background-color: #111327;
+  color: #fff;
   cursor: pointer;
   font-weight: 600;
 }

@@ -1,6 +1,10 @@
+<script setup lang="ts">
+const currentYear = new Date().getFullYear()
+</script>
+
 <template>
   <footer class="corner-footer">
-    <span class="footer-copy">Copyright 2025 NavTalk. All rights reserved.</span>
+    <span class="footer-copy">© {{ currentYear }} NavTalk. All rights reserved.</span>
     <div class="footer-links">
       <a href="https://www.youtube.com/@frankfu007" target="_blank" rel="noreferrer">YouTube</a>
       <a href="https://discord.com/invite/A9VE3zXM9p" target="_blank" rel="noreferrer">Discord</a>
