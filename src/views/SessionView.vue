@@ -6,6 +6,7 @@ import { findAvatar } from '../data/avatars'
 import { useNavTalkRealtime, type ChatMessage } from '../composables/useNavTalkRealtime'
 import MovableCamera from '../components/MovableCamera.vue'
 import type { SessionFeedback, CorrectionItem } from '../types/sessionFeedback'
+import { assetUrl } from '../utils/assetUrl'
 
 const DEFAULT_FEEDBACK: SessionFeedback = {
   score: 70,
@@ -18,6 +19,8 @@ const DEFAULT_FEEDBACK: SessionFeedback = {
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
+
+const iconPath = (name: string) => assetUrl(`icons/${name}`)
 
 function ensureSentenceCase(text: string) {
   const trimmed = text.trim()
@@ -357,16 +360,13 @@ watch(
             @click="handleCaptionsToggle"
           >
             <span class="icon-circle">
-              <svg width="22" height="14" viewBox="0 0 22 14" aria-hidden="true">
-                <path
-                  d="M1 11.5h20M3 2.5h16c1.1 0 2 .9 2 2v5c0 1.1-.9 2-2 2H3c-1.1 0-2-.9-2-2v-5c0-1.1.9-2 2-2Zm4 3h4m2 0h4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <img
+                :src="
+                  captionsEnabled ? iconPath('Captions.svg') : iconPath('NoCaptions.svg')
+                "
+                :alt="captionsEnabled ? 'Captions on' : 'Captions off'"
+                loading="lazy"
+              />
             </span>
             <span class="icon-label">{{ captionsEnabled ? 'Hide captions' : 'Show captions' }}</span>
           </button>
@@ -378,16 +378,7 @@ watch(
             @click="handleToggleCall"
           >
             <span class="icon-circle">
-              <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-                <path
-                  d="M6 11c2.7-2.2 11.3-2.2 14 0M6 11v4m14-4v4"
-                  fill="none"
-                  stroke="#fff"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <img :src="iconPath('Hang-up.svg')" alt="Hang up" loading="lazy" />
             </span>
             <span class="icon-label">{{ isCallActive || isConnecting ? 'Hang up' : 'Start call' }}</span>
           </button>
@@ -400,26 +391,11 @@ watch(
             @click="handleMicToggle"
           >
             <span class="icon-circle">
-              <svg v-if="!isMicMuted" width="16" height="22" viewBox="0 0 16 22" aria-hidden="true">
-                <path
-                  d="M8 1a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3Zm6 9c0 3.9-3.1 7-7 7s-7-3.1-7-7m7 7v4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
-              <svg v-else width="20" height="22" viewBox="0 0 20 22" aria-hidden="true">
-                <path
-                  d="M12 2.5v7.5c0 1.7-1.3 3-3 3-.8 0-1.6-.3-2.1-.9m-2.4-2.9V5c0-1.7 1.3-3 3-3 1.1 0 2 .6 2.5 1.4M18 10c0 3.9-3.1 7-7 7-2 0-3.8-.8-5-2.2M11 17.5V21m-4-3.5V21M2 2l16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.6"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                />
-              </svg>
+              <img
+                :src="isMicMuted ? iconPath('NoMicrophone.svg') : iconPath('Microphone.svg')"
+                alt="Microphone"
+                loading="lazy"
+              />
             </span>
             <span class="icon-label">{{ isMicMuted ? 'Unmute mic' : 'Mute mic' }}</span>
           </button>
@@ -615,7 +591,7 @@ watch(
 .control-deck {
   display: flex;
   justify-content: center;
-  gap: clamp(16px, 3vw, 32px);
+  gap: clamp(18px, 3vw, 32px);
   flex-wrap: wrap;
   padding: 0 12px;
   width: min(640px, 100%);
@@ -625,79 +601,54 @@ watch(
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-weight: 600;
-  color: #111327;
+  color: #4b4b4b;
   transition: color 0.2s ease;
 }
 
 .icon-button:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.6;
 }
 
-.icon-button.ghosted {
-  opacity: 0.55;
+.icon-button .icon-label {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: inherit;
 }
 
 .icon-button .icon-circle {
-  width: 74px;
-  height: 74px;
+  width: 80px;
+  height: 80px;
   border-radius: 999px;
-  background: #fff;
+  background: transparent;
+  border: none;
   display: grid;
   place-items: center;
-  box-shadow: 0 12px 30px rgba(15, 18, 34, 0.15);
-  color: inherit;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
 }
 
-.icon-button.captions .icon-circle {
-  border: 1px solid rgba(17, 19, 39, 0.1);
-}
-
-.icon-button.captions.active .icon-circle {
-  background: #111327;
-  color: #fff;
-  border-color: #111327;
+.icon-button .icon-circle img {
+  width: 52px;
+  height: auto;
+  display: block;
 }
 
 .icon-button.captions.active .icon-label {
   color: #111327;
 }
 
-.icon-button.hangup .icon-circle {
-  background: #2563eb;
-  transition: background 0.2s ease;
-}
-
-.icon-button.hangup span {
-  color: #2563eb;
-  transition: color 0.2s ease;
-}
-
-.icon-button.hangup.active .icon-circle {
-  background: #f25050;
-}
-
-.icon-button.hangup.active span {
-  color: #f25050;
-}
-
-.icon-button.mic {
-  pointer-events: auto;
+.icon-button.hangup .icon-label {
+  color: #ec4d52;
 }
 
 .icon-button.mic.muted {
   color: #b91c1c;
-}
-
-.icon-button.mic.muted .icon-circle {
-  background: #fee2e2;
-  box-shadow: 0 12px 24px rgba(185, 28, 28, 0.2);
 }
 
 .error-banner {
@@ -745,8 +696,8 @@ watch(
   }
 
   .icon-button .icon-circle {
-    width: 60px;
-    height: 60px;
+    width: 68px;
+    height: 68px;
   }
 }
 
