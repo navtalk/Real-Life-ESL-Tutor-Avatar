@@ -2,14 +2,13 @@
 import { RouterLink } from 'vue-router'
 import { assetUrl } from '../utils/assetUrl'
 
-const brandLogo = assetUrl('icons/navtalk.png')
+const brandLogo = assetUrl('icons/navtalk-logo.svg')
 </script>
 
 <template>
   <header class="corner-header">
     <RouterLink class="corner-brand" to="/">
       <img :src="brandLogo" alt="NavTalk logo" />
-      <span>NavTalk</span>
     </RouterLink>
 
     <a
@@ -35,7 +34,13 @@ const brandLogo = assetUrl('icons/navtalk.png')
 <style scoped>
 .corner-header {
   position: fixed;
-  inset: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  padding: clamp(12px, 3vw, 32px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   pointer-events: none;
 }
 
@@ -45,28 +50,18 @@ const brandLogo = assetUrl('icons/navtalk.png')
 }
 
 .corner-brand {
-  position: fixed;
-  top: clamp(12px, 3vw, 32px);
-  left: clamp(12px, 3vw, 48px);
   display: inline-flex;
   align-items: center;
-  gap: 12px;
   text-decoration: none;
-  font-size: 1.2rem;
   font-weight: 700;
-  color: #1d1e2c;
-  padding: 10px 18px;
 }
 
 .corner-brand img {
-  width: 42px;
-  height: 42px;
+  width: 126px;
+  height: 26px;
 }
 
 .corner-github {
-  position: fixed;
-  top: clamp(12px, 3vw, 32px);
-  right: clamp(12px, 3vw, 48px);
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -87,19 +82,12 @@ const brandLogo = assetUrl('icons/navtalk.png')
 }
 
 @media (max-width: 640px) {
-  .corner-brand,
+  .corner-header {
+    padding: 12px;
+  }
+
   .corner-github {
-    position: fixed;
-    top: 12px;
     padding: 8px 16px;
-  }
-
-  .corner-brand {
-    left: 12px;
-  }
-
-  .corner-github {
-    right: 12px;
   }
 }
 </style>
