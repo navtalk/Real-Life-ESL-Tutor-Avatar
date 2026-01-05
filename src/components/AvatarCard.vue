@@ -54,9 +54,13 @@ function handleClick() {
   align-items: center;
 }
 
-.avatar-card:hover,
-.avatar-card.selected {
+.avatar-card:hover {
   border-color: rgba(18, 19, 29, 0.18);
+  box-shadow: 0 28px 45px rgba(17, 20, 39, 0.18);
+}
+
+.avatar-card.selected {
+  border-color: #000;
   box-shadow: 0 28px 45px rgba(17, 20, 39, 0.18);
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, watchEffect } from 'vue'
+import { computed, nextTick, onMounted, ref, watch, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
 import { findGoal } from '../data/goals'
 import { findAvatar } from '../data/avatars'
@@ -203,6 +203,12 @@ watchEffect(() => {
   if (!goal.value || !avatar.value) {
     router.replace('/')
   }
+})
+
+onMounted(() => {
+  if (!goal.value || !avatar.value) return
+  if (isCallActive.value || isConnecting.value) return
+  toggleSession()
 })
 
 const sessionPrompt = computed(() => {
