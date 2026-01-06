@@ -178,6 +178,11 @@ watchEffect(() => {
   box-shadow: 0 18px 45px rgba(17, 19, 39, 0.08);
 }
 
+.corrections-card {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
 .score-card {
   display: flex;
   flex-direction: column;
@@ -238,8 +243,8 @@ watchEffect(() => {
 
 .correction-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  gap: clamp(16px, 2vw, 24px);
 }
 
 .correction {
@@ -312,6 +317,10 @@ watchEffect(() => {
 
   .metric-row {
     justify-content: flex-start;
+  }
+
+  .correction-grid {
+    grid-template-columns: 1fr;
   }
 
   .correction-pair {

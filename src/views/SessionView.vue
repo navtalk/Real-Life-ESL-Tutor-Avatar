@@ -9,12 +9,29 @@ import type { SessionFeedback, CorrectionItem } from '../types/sessionFeedback'
 import { assetUrl } from '../utils/assetUrl'
 
 const DEFAULT_FEEDBACK: SessionFeedback = {
-  score: 70,
-  fluency: 2,
-  pronunciation: 2,
-  vocabulary: 2,
+  score: 0,
+  fluency: 0,
+  pronunciation: 0,
+  vocabulary: 0,
   corrections: [],
 }
+
+const PAST_INDICATORS = ['yesterday', 'last night', 'last week', 'earlier', 'this morning', 'this afternoon', 'recently']
+const PAST_VERB_CASES = [
+  { anchor: 'go to', replacement: 'went to' },
+  { anchor: 'go', replacement: 'went' },
+  { anchor: 'have', replacement: 'had' },
+  { anchor: 'eat', replacement: 'ate' },
+  { anchor: 'see', replacement: 'saw' },
+  { anchor: 'come', replacement: 'came' },
+  { anchor: 'buy', replacement: 'bought' },
+  { anchor: 'take', replacement: 'took' },
+  { anchor: 'meet', replacement: 'met' },
+  { anchor: 'watch', replacement: 'watched' },
+  { anchor: 'talk', replacement: 'talked' },
+  { anchor: 'visit', replacement: 'visited' },
+  { anchor: 'bring', replacement: 'brought' },
+]
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
@@ -73,17 +90,10 @@ function buildSessionFeedbackFromChat(messages: ChatMessage[]): SessionFeedback 
     .filter((msg) => msg.text.length > 0)
 
   if (!userMessages.length) {
-    return { ...DEFAULT_FEEDBACK, corrections: [] }
+    return { ...DEFAULT_FEEDBACK }
   }
 
   const evaluations = userMessages.map((msg) => evaluateSentence(msg.text))
-  const perSentenceValue = 100 / userMessages.length
-  const totalScore = clamp(
-    Math.round(evaluations.reduce((sum, entry) => sum + entry.normalized * perSentenceValue, 0)),
-    0,
-    100
-  )
-
   const averageMetric = (key: keyof Omit<SentenceScore, 'normalized'>) =>
     clamp(
       Math.round(evaluations.reduce((sum, entry) => sum + entry[key], 0) / evaluations.length),
@@ -91,77 +101,112 @@ function buildSessionFeedbackFromChat(messages: ChatMessage[]): SessionFeedback 
       5
     )
 
+  const fluency = averageMetric('fluency')
+  const pronunciation = averageMetric('pronunciation')
+  const vocabulary = averageMetric('vocabulary')
+  const normalized = (fluency + pronunciation + vocabulary) / 15
+
   return {
-    score: totalScore,
-    fluency: averageMetric('fluency'),
-    pronunciation: averageMetric('pronunciation'),
-    vocabulary: averageMetric('vocabulary'),
+    score: clamp(Math.round(normalized * 100), 0, 100),
+    fluency,
+    pronunciation,
+    vocabulary,
     corrections: buildCorrections(userMessages),
   }
 }
 
 function buildCorrections(userMessages: ChatMessage[]): CorrectionItem[] {
-  const recent = userMessages.slice(-5)
   const corrections: CorrectionItem[] = []
 
-  for (const message of recent) {
-    const correction = createCorrectionFromMessage(message.text)
-    if (correction) {
-      corrections.push(correction)
-    }
-    if (corrections.length === 3) {
-      break
-    }
-  }
+  for (const message of userMessages) {
+    const trimmed = message.text.trim()
+    if (!trimmed) continue
 
-  if (!corrections.length && recent.length) {
-    const fallback = recent[recent.length - 1].text
-    const sentence = ensureSentenceCase(fallback)
+    const correctionItems = createCorrectionFromPractice(trimmed)
+    if (correctionItems.length) {
+      corrections.push(...correctionItems)
+      continue
+    }
+
+    const sentence = ensureSentenceCase(trimmed)
     corrections.push({
-      wrong: fallback,
-      right: `${sentence}${/[.!?]$/.test(sentence) ? '' : '.'} Add one concrete example to support this idea.`,
-      note: 'You can make this response stronger by adding a brief example or reason after the main sentence.',
+      wrong: trimmed,
+      right: sentence,
+      note: 'Vocabulary: keep exploring new words and listen for the rhythm in your pronunciation so every sentence feels natural.',
     })
   }
 
   return corrections
 }
 
-function createCorrectionFromMessage(text: string): CorrectionItem | null {
-  const original = text.trim()
-  if (!original) return null
-  let suggestion = original
-  const notes: string[] = []
+function createCorrectionFromPractice(text: string): CorrectionItem[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
 
-  if (!/^[A-Z]/.test(original)) {
-    suggestion = `${suggestion.charAt(0).toUpperCase()}${suggestion.slice(1)}`
-    notes.push('Capitalize the first word.')
+  const corrections: CorrectionItem[] = []
+  const detectors = [detectPastTenseMistake, detectThirdPersonMistake, detectTravelMistake]
+  for (const detector of detectors) {
+    const result = detector(trimmed)
+    if (result) {
+      corrections.push(result)
+    }
   }
+  return corrections
+}
 
-  if (/\bi\b/.test(suggestion)) {
-    suggestion = suggestion.replace(/\bi\b/g, 'I')
-    notes.push('Use uppercase “I” when referring to yourself.')
-  }
-
-  if (/\s{2,}/.test(suggestion)) {
-    suggestion = suggestion.replace(/\s{2,}/g, ' ')
-    notes.push('Use single spaces between words.')
-  }
-
-  if (!/[.!?]$/.test(suggestion) && suggestion.split(/\s+/).length > 3) {
-    suggestion = suggestion.replace(/[.!?]+$/, '')
-    suggestion = `${suggestion}.`
-    notes.push('Finish the thought with punctuation.')
-  }
-
-  if (notes.length === 0) {
+function detectPastTenseMistake(text: string): CorrectionItem | null {
+  const lowercase = text.toLowerCase()
+  if (!PAST_INDICATORS.some((indicator) => lowercase.includes(indicator))) {
     return null
   }
 
+  for (const verbCase of PAST_VERB_CASES) {
+    const anchorRegex = new RegExp(`\\bI\\s+(?:am\\s+)?${verbCase.anchor.replace(/\s+/g, '\\s+')}(?=\\b)`, 'i')
+    const match = anchorRegex.exec(text)
+    if (!match) continue
+
+    const originalSegment = match[0]
+    const verbRegex = new RegExp(verbCase.anchor, 'i')
+    const replacedSegment = originalSegment.replace(verbRegex, verbCase.replacement)
+    const suggestion =
+      text.slice(0, match.index) + replacedSegment + text.slice(match.index + originalSegment.length)
+
+    const indicator = PAST_INDICATORS.find((marker) => lowercase.includes(marker)) ?? 'that moment'
+    return {
+      wrong: text,
+      right: ensureSentenceCase(suggestion),
+      note: `Vocabulary: Use the past tense "${verbCase.replacement}" when referring to ${indicator}. Pronunciation: Past-tense endings help listeners hear the completed action clearly.`,
+    }
+  }
+
+  return null
+}
+
+function detectThirdPersonMistake(text: string): CorrectionItem | null {
+  const match = text.match(/\b(She|He|It)\s+don'?t\b\s+([a-zA-Z]+)/i)
+  if (!match) return null
+  const [, subject, rawVerb] = match
+  const baseVerb = rawVerb.replace(/s$/i, '')
+  const suggestion = text
+    .replace(/don'?t/i, "doesn't")
+    .replace(new RegExp(`\\b${rawVerb}\\b`, 'i'), baseVerb)
+
   return {
-    wrong: original,
-    right: suggestion,
-    note: notes.join(' '),
+    wrong: text,
+    right: ensureSentenceCase(suggestion),
+    note: `Pronunciation: "doesn't" ends with a voiced /z/, not the sharp /t/ sound. Vocabulary: pair "${subject} doesn't" with the base verb "${baseVerb}" to stay grammatically correct.`,
+  }
+}
+
+function detectTravelMistake(text: string): CorrectionItem | null {
+  const match = text.match(/\b(She|He|It)\b[^.!?]*?\btravel\b(?!ing)/i)
+  if (!match) return null
+  const suggestion = text.replace(/\btravel\b(?!ing)/gi, 'traveling')
+
+  return {
+    wrong: text,
+    right: ensureSentenceCase(suggestion),
+    note: 'Vocabulary: "traveling" keeps the third-person phrase consistent when describing an ongoing habit.',
   }
 }
 
