@@ -132,7 +132,7 @@ watchEffect(() => {
 <style scoped>
 .summary-screen {
   height: 100%;
-  padding: clamp(8px, 3vw, 28px) clamp(12px, 4vw, 32px);
+  /* padding: clamp(8px, 3vw, 28px) clamp(12px, 4vw, 32px); */
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -142,7 +142,7 @@ watchEffect(() => {
 .summary-headline {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
 }
 

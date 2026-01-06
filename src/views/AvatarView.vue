@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, watchEffect } from 'vue'
 import { useRouter } from 'vue-router'
+import { assetUrl } from '../utils/assetUrl'
 import { findGoal } from '../data/goals'
 import { tutorAvatars, type TutorAvatar } from '../data/avatars'
 import AvatarCard from '../components/AvatarCard.vue'
@@ -37,6 +38,7 @@ watchEffect(() => {
 function handleSelect(avatar: TutorAvatar) {
   selectedId.value = avatar.id
 }
+const backIcon = assetUrl('images/left.png')
 
 function goBack() {
   router.push({ name: 'home' })
@@ -62,11 +64,13 @@ watch(
 <template>
   <section v-if="goal" class="avatar-screen">
     <div class="avatar-header">
-      <h2>
-        <button class="back-link" @click="goBack"><</button>
-        Meet Your Avatar
-      </h2>
-      <p class="eyebrow">Choose Your AI Learning Partner</p>
+      <button class="back-link" @click="goBack">
+        <img :src="backIcon" alt="Back" />
+      </button>
+      <div class="avatar-heading">
+        <h2>Meet Your Avatar</h2>
+        <p class="eyebrow">Choose Your AI Learning Partner</p>
+      </div>
     </div>
 
     <div class="avatar-grid">
@@ -109,10 +113,19 @@ watch(
 }
 
 .avatar-header {
-  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 3vw, 14px);
   width: 100%;
   max-width: 1100px;
   margin: 0 auto 20px;
+  flex-wrap: nowrap;
+}
+
+.avatar-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .back-link {
@@ -121,18 +134,32 @@ watch(
   color: #1d1e2c;
   cursor: pointer;
   font-weight: 600;
-  margin-right: 16px;
+  font-size: 1.5rem;
+  padding: 0;
+  margin-top: -25px;
+}
+
+.back-link img {
+  width: 28px;
+  height: 28px;
+  display: block;
+}
+
+.avatar-heading h2 {
+  margin: 0;
+  font-size: clamp(1.9rem, 3.2vw, 2.25rem);
+  letter-spacing: 0.02em;
+  color: #111327;
+  font-weight: 600;
+  line-height: 1.1;
 }
 
 .eyebrow {
   letter-spacing: 0.15em;
-  color: rgba(17, 20, 39, 0.7);
+  color: rgba(17, 20, 39, 0.75);
   font-weight: 600;
-}
-
-.avatar-header h2 {
-  margin: 0 0 12px;
-  font-size: clamp(2.2rem, 4vw, 3rem);
+  margin: 0;
+  font-size: 0.95rem;
 }
 
 .avatar-header p {
