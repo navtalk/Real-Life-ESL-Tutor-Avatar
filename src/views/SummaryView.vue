@@ -137,6 +137,8 @@ watchEffect(() => {
   flex-direction: column;
   gap: 20px;
   justify-content: flex-start;
+  align-items: center;
+  padding-top: clamp(24px, 3vw, 36px);
 }
 
 .summary-headline {
@@ -144,6 +146,13 @@ watchEffect(() => {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.summary-headline > div {
+  flex: 1;
+  min-width: 0;
 }
 
 .eyebrow {
@@ -186,6 +195,8 @@ watchEffect(() => {
 .score-card {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 1100px;
 }
 
 .score-row {
