@@ -111,16 +111,24 @@ function buildSessionFeedbackFromChat(messages: ChatMessage[]): SessionFeedback 
     fluency,
     pronunciation,
     vocabulary,
-    corrections: buildCorrections(userMessages),
+    corrections: buildCorrections(messages),
   }
 }
 
-function buildCorrections(userMessages: ChatMessage[]): CorrectionItem[] {
+function buildCorrections(messages: ChatMessage[]): CorrectionItem[] {
   const corrections: CorrectionItem[] = []
+  const practiceQueue: PracticeTarget[] = []
 
-  for (const message of userMessages) {
+  for (const message of messages) {
     const trimmed = message.text.trim()
     if (!trimmed) continue
+
+    if (message.role === 'assistant') {
+      practiceQueue.push(...extractPracticeTargets(trimmed))
+      continue
+    }
+
+    if (message.role !== 'user') continue
 
     const correctionItems = createCorrectionFromPractice(trimmed)
     if (correctionItems.length) {
@@ -128,15 +136,88 @@ function buildCorrections(userMessages: ChatMessage[]): CorrectionItem[] {
       continue
     }
 
-    const sentence = ensureSentenceCase(trimmed)
-    corrections.push({
-      wrong: trimmed,
-      right: sentence,
-      note: 'Vocabulary: keep exploring new words and listen for the rhythm in your pronunciation so every sentence feels natural.',
-    })
+    const practiceTarget = practiceQueue.shift()
+    if (practiceTarget && shouldCreatePracticeCorrection(trimmed, practiceTarget.text)) {
+      corrections.push(createPracticeCorrection(trimmed, practiceTarget))
+      continue
+    }
+
+    corrections.push(createNeutralCorrection(trimmed))
   }
 
   return corrections
+}
+
+interface PracticeTarget {
+  text: string
+  cue?: string
+}
+
+const PRACTICE_HINT = /(practice|say|repeat|read|try|speak|respond|answer|dialogue)/i
+
+function extractPracticeTargets(text: string): PracticeTarget[] {
+  const targets: PracticeTarget[] = []
+  const cleaned = text.trim()
+  if (!cleaned) return targets
+
+  const add = (value: string, cue?: string) => {
+    const normalized = value.replace(/\s+/g, ' ').trim()
+    if (!normalized) return
+    targets.push({ text: normalized, cue })
+  }
+
+  const directiveMatch = cleaned.match(
+    /(?:say|repeat|practice|read|try|speak|answer|respond)\s+(?:the following\s+)?(?:sentence|phrase|line|dialogue|text|example|response)?\s*[:\-–—]\s*(.+)/i
+  )
+
+  if (directiveMatch) {
+    splitIntoSentences(directiveMatch[1]).forEach((sentence) => add(sentence, 'Tutor prompt'))
+  }
+
+  const quoteRegex = /["“”](.+?)["“”]/g
+  let quoteMatch: RegExpExecArray | null = null
+  while ((quoteMatch = quoteRegex.exec(cleaned))) {
+    add(quoteMatch[1], 'Tutor example')
+  }
+
+  if (!targets.length && PRACTICE_HINT.test(cleaned)) {
+    const sentences = splitIntoSentences(cleaned).filter(
+      (sentence) => sentence.length > 5 && !PRACTICE_HINT.test(sentence.toLowerCase())
+    )
+    sentences.forEach((sentence) => add(sentence, 'Practice sentence'))
+  }
+
+  return targets
+}
+
+function shouldCreatePracticeCorrection(user: string, target: string) {
+  return normalizeForComparison(user) !== normalizeForComparison(target)
+}
+
+function createPracticeCorrection(user: string, practiceTarget: PracticeTarget): CorrectionItem {
+  const normalizedTarget = ensureSentenceCase(practiceTarget.text)
+  const grammarNote = describeGrammarNoteForText(normalizedTarget)
+  const contextNote = practiceTarget.cue ? ` (${practiceTarget.cue})` : ''
+  return {
+    wrong: user,
+    right: normalizedTarget,
+    note: `${grammarNote}${contextNote}`,
+  }
+}
+
+function splitIntoSentences(input: string) {
+  return input
+    .split(/[\r\n]+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const matches = line.match(/[^.!?]+[.!?]+|[^.!?]+$/g)
+      return matches ? matches.map((sentence) => sentence.trim()) : []
+    })
+}
+
+function normalizeForComparison(text: string) {
+  return text.toLowerCase().replace(/[^a-z0-9]+/gi, '')
 }
 
 function createCorrectionFromPractice(text: string): CorrectionItem[] {
@@ -175,7 +256,7 @@ function detectPastTenseMistake(text: string): CorrectionItem | null {
     return {
       wrong: text,
       right: ensureSentenceCase(suggestion),
-      note: `Vocabulary: Use the past tense "${verbCase.replacement}" when referring to ${indicator}. Pronunciation: Past-tense endings help listeners hear the completed action clearly.`,
+      note: `Grammar: Use the past tense "${verbCase.replacement}" when referring to ${indicator}. Pronunciation: Past-tense endings help listeners hear the completed action clearly.`,
     }
   }
 
@@ -194,7 +275,7 @@ function detectThirdPersonMistake(text: string): CorrectionItem | null {
   return {
     wrong: text,
     right: ensureSentenceCase(suggestion),
-    note: `Pronunciation: "doesn't" ends with a voiced /z/, not the sharp /t/ sound. Vocabulary: pair "${subject} doesn't" with the base verb "${baseVerb}" to stay grammatically correct.`,
+    note: `Grammar: Pair "${subject} doesn't" with the base verb "${baseVerb}" to stay grammatically correct. Pronunciation: "doesn't" ends with a voiced /z/, not the sharp /t/ sound.`,
   }
 }
 
@@ -206,8 +287,97 @@ function detectTravelMistake(text: string): CorrectionItem | null {
   return {
     wrong: text,
     right: ensureSentenceCase(suggestion),
-    note: 'Vocabulary: "traveling" keeps the third-person phrase consistent when describing an ongoing habit.',
+    note: 'Grammar: Use "traveling" (with -ing) to keep the third-person phrase consistent when describing a habit.',
   }
+}
+
+function createNeutralCorrection(text: string): CorrectionItem {
+  return {
+    wrong: text,
+    right: refineNeutralSentence(text),
+    note: describeGrammarNoteForText(text),
+  }
+}
+
+const GREETINGS = ['hello', 'hi', 'hey', 'greetings', 'good morning', 'good afternoon', 'good evening']
+const QUESTION_WORDS = ['how', 'what', 'where', 'when', 'why', 'who', 'which', 'whose', 'whom']
+
+function refineNeutralSentence(text: string) {
+  const polishedGreeting = polishGreetingSentence(text)
+  if (polishedGreeting) {
+    return polishedGreeting
+  }
+
+  const normalized = ensureSentenceCase(text)
+  if (/[.!?]$/.test(normalized)) {
+    return normalized
+  }
+
+  return detectLikelyQuestion(text) ? `${normalized}?` : `${normalized}.`
+}
+
+function polishGreetingSentence(text: string) {
+  const pattern = new RegExp(`^(${GREETINGS.join('|')})[,!.]*\\s+(.+)$`, 'i')
+  const match = text.match(pattern)
+  if (!match) return null
+
+  const greeting = ensureSentenceCase(match[1])
+  let rest = match[2].trim()
+  if (!rest) {
+    return `${greeting}!`
+  }
+
+  rest = ensureSentenceCase(rest)
+  if (!/[.!?]$/.test(rest)) {
+    rest = detectLikelyQuestion(rest) ? `${rest}?` : `${rest}.`
+  }
+
+  return `${greeting}! ${rest}`
+}
+
+function detectLikelyQuestion(text: string) {
+  const normalized = text.trim().toLowerCase()
+  if (!normalized) return false
+
+  if (QUESTION_WORDS.some((word) => normalized.startsWith(`${word} `))) {
+    return true
+  }
+
+  return /\b(are|is|do|does|did|can|could|will|would|should|am|was|were)\b.*\b(you|i|we|they|he|she|it)\b/.test(
+    normalized
+  )
+}
+
+function describeGrammarNoteForText(text: string) {
+  const trimmed = text.trim()
+  if (!trimmed) {
+    return 'Grammar: Provide a full sentence with a clear subject and verb so the feedback stays useful.'
+  }
+
+  const lower = trimmed.toLowerCase()
+  if (/\?$/.test(trimmed)) {
+    const questionWord = QUESTION_WORDS.find((word) => lower.startsWith(`${word} `))
+    if (questionWord) {
+      return `Grammar: ${capitalizeWord(questionWord)}-questions put the question word before an auxiliary verb and subject (for example, "${capitalizeWord(
+        questionWord
+      )} are you..."). That inversion signals you are asking for information.`
+    }
+    return 'Grammar: Yes/no questions begin with an auxiliary verb (do/are/can) before the subject so listeners know it is a question.'
+  }
+
+  if (/^(i am|i'm)\b/.test(lower)) {
+    return 'Grammar: Use "I am" + -ing to describe what is happening right now—keeping the -ing form keeps the present progressive correct.'
+  }
+
+  if (/\b(can|could|should|would|will|might)\b/.test(lower)) {
+    return 'Grammar: Modal verbs (can/could/should) follow the subject and sit before the base verb to show ability, permission, or advice.'
+  }
+
+  return 'Grammar: Keep subjects and verbs in the same tense and finish with punctuation so your sentences stay clear and natural.'
+}
+
+function capitalizeWord(word: string) {
+  return word.charAt(0).toUpperCase() + word.slice(1)
 }
 
 const props = defineProps<{
