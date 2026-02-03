@@ -806,10 +806,18 @@ watch(
 .control-deck {
   display: flex;
   justify-content: center;
-  gap: clamp(18px, 3vw, 32px);
-  flex-wrap: wrap;
+  gap: clamp(14px, 2vw, 26px);
+  flex-wrap: nowrap;
   padding: 0 12px;
   width: min(640px, 100%);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.control-deck::-webkit-scrollbar {
+  display: none;
 }
 
 .icon-button {
@@ -901,18 +909,13 @@ watch(
     border-radius: 24px;
   }
 
-  .control-deck {
-    flex-direction: column;
-    align-items: center;
-  }
-
   .chat-panel {
     width: min(360px, 100%);
   }
 
   .icon-button .icon-circle {
-    width: 68px;
-    height: 68px;
+    width: 64px;
+    height: 64px;
   }
 }
 
