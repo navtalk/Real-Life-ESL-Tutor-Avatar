@@ -51,6 +51,7 @@ const NavTalkMessageType = Object.freeze({
     'realtime.response.function_call_arguments.done',
   REALTIME_RESPONSE_COMPLETED: 'realtime.response.completed',
   REALTIME_RESPONSE_ERROR: 'realtime.response.error',
+  REALTIME_INPUT_IMAGE: 'realtime.input_image',
   ERROR: 'error',
 
   LEGACY_RESPONSE_AUDIO_TRANSCRIPT_DELTA: 'response.audio_transcript.delta',
@@ -519,6 +520,23 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
         })
       )
     })
+  }
+
+  function sendImageFrame(dataUrl: string, requestResponse = false): boolean {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) return false
+    if (!dataUrl.startsWith('data:image')) {
+      console.warn('sendImageFrame called with non-image payload')
+      return false
+    }
+    const payload = {
+      type: NavTalkMessageType.REALTIME_INPUT_IMAGE,
+      data: {
+        content: dataUrl,
+        reply: requestResponse ? 1 : 0,
+      },
+    }
+    realtimeSocket.send(JSON.stringify(payload))
+    return true
   }
 
   function setMicEnabled(enabled: boolean) {
@@ -1046,6 +1064,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
     setPrompt,
     setCharacter,
     setVoice,
+    sendImageFrame,
     resumePlaybackAudio: resumePlaybackContext,
   }
 }

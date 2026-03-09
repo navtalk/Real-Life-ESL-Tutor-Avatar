@@ -405,11 +405,70 @@ const {
   setVoice,
   toggleMicrophone,
   isMicMuted,
+  sendImageFrame,
 } = navtalk
 
 const chatVisible = ref(false)
 const captionsEnabled = ref(true)
 const chatStreamRef = ref<HTMLDivElement | null>(null)
+const movableCameraRef = ref<InstanceType<typeof MovableCamera> | null>(null)
+
+const CAMERA_CAPTURE_INTERVAL_MS = 2000
+let cameraCaptureTimer: ReturnType<typeof setInterval> | null = null
+let captureCanvas: HTMLCanvasElement | null = null
+
+function getCaptureCanvas(): HTMLCanvasElement | null {
+  if (typeof document === 'undefined') return null
+  if (!captureCanvas) {
+    captureCanvas = document.createElement('canvas')
+  }
+  return captureCanvas
+}
+
+function captureFrameAndSend() {
+  const video = movableCameraRef.value?.getVideoElement() ?? null
+  if (!video || video.readyState < 2 || !sendImageFrame) return
+
+  const width = video.videoWidth || 640
+  const height = video.videoHeight || 360
+  if (!width || !height) return
+
+  const canvas = getCaptureCanvas()
+  if (!canvas) return
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  canvas.width = width
+  canvas.height = height
+  ctx.drawImage(video, 0, 0, width, height)
+  canvas.toBlob(
+    (blob) => {
+      if (!blob) return
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          sendImageFrame(reader.result, false)
+        }
+      }
+      reader.readAsDataURL(blob)
+    },
+    'image/jpeg',
+    0.7
+  )
+}
+
+function startCameraCapture() {
+  if (cameraCaptureTimer || !isCallActive.value) return
+  captureFrameAndSend()
+  cameraCaptureTimer = window.setInterval(captureFrameAndSend, CAMERA_CAPTURE_INTERVAL_MS)
+}
+
+function stopCameraCapture() {
+  if (cameraCaptureTimer) {
+    clearInterval(cameraCaptureTimer)
+    cameraCaptureTimer = null
+  }
+}
 const chatScrollSignature = computed(() =>
   chatMessages.value.map((msg) => `${msg.id}:${msg.text.length}`).join('|')
 )
@@ -459,6 +518,11 @@ watch(
   () => isCallActive.value,
   (active) => {
     chatVisible.value = active && captionsEnabled.value
+    if (active) {
+      startCameraCapture()
+    } else {
+      stopCameraCapture()
+    }
   }
 )
 
@@ -477,6 +541,7 @@ const sessionLabel = computed(() => {
 
 function handleToggleCall() {
   if (isCallActive.value || isConnecting.value) {
+    stopCameraCapture()
     if (goal.value && avatar.value) {
       const summary = buildSessionFeedbackFromChat(chatMessages.value)
       clearHistory()
@@ -639,7 +704,7 @@ watch(
       </Transition>
     </div>
   </section>
-  <MovableCamera :active="isCallActive" />
+  <MovableCamera ref="movableCameraRef" :active="isCallActive" />
 </template>
 
 <style scoped>

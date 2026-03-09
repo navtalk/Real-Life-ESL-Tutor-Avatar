@@ -158,6 +158,10 @@ onBeforeUnmount(() => {
     window.removeEventListener('resize', handleResize)
   }
 })
+
+defineExpose({
+  getVideoElement: () => videoRef.value,
+})
 </script>
 
 <template>
