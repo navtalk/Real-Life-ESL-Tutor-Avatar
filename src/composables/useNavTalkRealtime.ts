@@ -52,6 +52,7 @@ const NavTalkMessageType = Object.freeze({
   REALTIME_RESPONSE_COMPLETED: 'realtime.response.completed',
   REALTIME_RESPONSE_ERROR: 'realtime.response.error',
   REALTIME_INPUT_IMAGE: 'realtime.input_image',
+  REALTIME_INPUT_CONFIG: 'realtime.input_config',
   ERROR: 'error',
 
   LEGACY_RESPONSE_AUDIO_TRANSCRIPT_DELTA: 'response.audio_transcript.delta',
@@ -457,50 +458,28 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
       .catch((err) => console.error('ICE candidate error', err))
   }
 
-  async function sendSessionUpdate() {
-    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) return
-
-    const payload = {
-      type: 'session.update',
-      session: {
-        instructions: config.prompt,
-        voice: config.voice,
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 600,
-        },
-        temperature: 0.9,
-        max_response_output_tokens: 4096,
-        modalities: ['text', 'audio'],
-        input_audio_format: 'pcm16',
-        output_audio_format: 'pcm16',
-        input_audio_transcription: {
-          model: 'whisper-1',
-        },
-        tools: [
-          {
-            type: 'function',
-            name: 'end_conversation',
-            description:
-              'Call this when the learner signs off or when practice goals are met so we can hang up politely.',
-            parameters: {
-              type: 'object',
-              properties: {
-                reason: {
-                  type: 'string',
-                  description: 'Brief explanation of why the call should end.',
-                },
-              },
-              required: ['reason'],
-            },
-          },
-        ],
-      },
+  function sendSessionConfig() {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) {
+      console.warn('WebSocket not ready for config send')
+      return
     }
 
-    realtimeSocket.send(JSON.stringify(payload))
+    const sessionConfig = {
+      voice: config.voice,
+      prompt: config.prompt,
+    }
+
+    console.log('Sending session config:', sessionConfig)
+    realtimeSocket.send(
+      JSON.stringify({
+        type: 'realtime.input_config',
+        data: { content: JSON.stringify(sessionConfig) },
+      })
+    )
+  }
+
+  async function sendSessionUpdate() {
+    if (!realtimeSocket || realtimeSocket.readyState !== WebSocket.OPEN) return
 
     const recentUserMessages = chatMessages.value.filter((msg) => msg.role === 'user').slice(-3)
     recentUserMessages.forEach((msg) => {
@@ -965,6 +944,7 @@ export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
 
       realtimeSocket.onopen = () => {
         console.info('Realtime socket connected')
+        sendSessionConfig()
       }
 
       realtimeSocket.onmessage = (event) => {
