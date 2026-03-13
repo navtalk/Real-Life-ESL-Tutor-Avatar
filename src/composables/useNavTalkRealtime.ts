@@ -13,7 +13,6 @@ export interface ChatMessage {
 
 interface NavTalkConfig {
   license: string
-  model: string
   characterName: string
   voice: string
   prompt: string
@@ -25,7 +24,6 @@ const DEFAULT_PROMPT = `You are Navi, a patient NavTalk AI language tutor that a
 Keep responses concise (1-3 sentences), always encourage real-time speaking practice,
 and offer micro-corrections that do not break learner confidence.`
 const DEFAULT_REALTIME_PATH = '/wss/v2/realtime-chat'
-const DEFAULT_MODEL = 'gpt-realtime'
 
 const NavTalkMessageType = Object.freeze({
   CONNECTED_SUCCESS: 'conversation.connected.success',
@@ -264,14 +262,12 @@ function buildRealtimeUrl(config: NavTalkConfig) {
   }
   target.searchParams.set('license', config.license)
   target.searchParams.set('name', config.characterName)
-  target.searchParams.set('model', config.model || DEFAULT_MODEL)
   return target
 }
 
 export function useNavTalkRealtime(videoElement: Ref<HTMLVideoElement | null>) {
   const config = reactive<NavTalkConfig>({
     license: import.meta.env.VITE_NAVTALK_LICENSE ?? '',
-    model: import.meta.env.VITE_NAVTALK_MODEL ?? DEFAULT_MODEL,
     characterName: import.meta.env.VITE_NAVTALK_CHARACTER ?? 'navtalk.Brain',
     voice: import.meta.env.VITE_NAVTALK_VOICE ?? 'cedar',
     prompt: import.meta.env.VITE_NAVTALK_PROMPT ?? DEFAULT_PROMPT,
