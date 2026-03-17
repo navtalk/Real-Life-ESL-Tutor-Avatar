@@ -20,8 +20,8 @@ The dev server runs on <http://localhost:5173>.
 | Key | Description |
 | --- | --- |
 | `VITE_NAVTALK_LICENSE` | NavTalk realtime license key. |
-| `VITE_NAVTALK_MODEL` | Defaults to `gpt-realtime`. |
 | `VITE_NAVTALK_CHARACTER` | Character name provided by NavTalk (e.g. `navtalk.Brain`). |
+| `VITE_NAVTALK_AVATAR_ID` | **(Optional, Recommended)** Avatar ID for precise lookup. If set, takes priority over `VITE_NAVTALK_CHARACTER`. Leave empty to use character name for avatar lookup. |
 | `VITE_NAVTALK_VOICE` | Voice preset (e.g. `cedar`). |
 | `VITE_NAVTALK_BASE_URL` | NavTalk transfer origin, defaults to `transfer.navtalk.ai`. |
 | `VITE_NAVTALK_PROMPT` | Optional fallback prompt. The UI sends a goal/avatar prompt automatically. |

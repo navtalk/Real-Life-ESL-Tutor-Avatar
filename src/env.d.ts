@@ -8,8 +8,8 @@ declare module '*.vue' {
 
 interface ImportMetaEnv {
   readonly VITE_NAVTALK_LICENSE?: string
-  readonly VITE_NAVTALK_MODEL?: string
   readonly VITE_NAVTALK_CHARACTER?: string
+  readonly VITE_NAVTALK_AVATAR_ID?: string
   readonly VITE_NAVTALK_VOICE?: string
   readonly VITE_NAVTALK_PROMPT?: string
   readonly VITE_NAVTALK_BASE_URL?: string
